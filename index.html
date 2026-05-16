@@ -2,49 +2,13 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="VitaFlow">
 <meta name="theme-color" content="#0f1a14">
-<link id="manifestLink" rel="manifest">
 <title>VitaFlow</title>
-<script>
-// Inline PWA manifest – no separate file needed
-const mf = {
-  name:"VitaFlow – Ernährung & Training",
-  short_name:"VitaFlow",
-  start_url:"./",
-  display:"standalone",
-  background_color:"#0f1a14",
-  theme_color:"#0f1a14",
-  orientation:"portrait",
-  icons:[{
-    src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%230f1a14'/%3E%3Ctext x='256' y='300' font-size='280' text-anchor='middle'%3E%F0%9F%A5%97%3C/text%3E%3Ctext x='256' y='420' font-family='Georgia' font-size='60' font-weight='bold' fill='%237ecb8f' text-anchor='middle'%3EVitaFlow%3C/text%3E%3C/svg%3E",
-    sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"
-  }]
-};
-const blob = new Blob([JSON.stringify(mf)],{type:'application/json'});
-document.getElementById('manifestLink').href = URL.createObjectURL(blob);
-
-// Inline Service Worker – registered from a blob URL
-const swCode = `
-const CACHE='vf-v1';
-self.addEventListener('install',e=>{self.skipWaiting();});
-self.addEventListener('activate',e=>{self.clients.claim();});
-self.addEventListener('fetch',e=>{
-  if(!e.request.url.startsWith(self.location.origin))return;
-  e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
-});`;
-const swBlob = new Blob([swCode],{type:'application/javascript'});
-const swURL  = URL.createObjectURL(swBlob);
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register(swURL,{scope:'./'}).catch(()=>{});
-  });
-}
-</script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0f1a14;--sur:#162019;--card:#1c2b22;--acc:#7ecb8f;--acc2:#e8c97a;--txt:#eef4f0;--mut:#7a9982;--dan:#e07a7a;--brd:rgba(126,203,143,.15);--r:16px;}
