@@ -188,8 +188,8 @@ select.inp{cursor:pointer;appearance:none;}
 .modal-box{background:var(--sur);border-radius:20px 20px 0 0;padding:22px 18px 36px;width:100%;max-width:480px;border-top:1px solid var(--brd);}
 .modal-title{font-size:15px;font-weight:600;color:var(--acc);margin-bottom:14px;}
 .modal-center{background:var(--sur);border-radius:18px;padding:22px 18px;width:100%;max-width:340px;border:1px solid var(--brd);}
-.modal-bg-center{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;align-items:center;justify-content:center;padding:20px;}
-.modal-bg-center.on{display:flex;}
+.modal-bg-center{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;align-items:center;justify-content:center;padding:20px;pointer-events:none;}
+.modal-bg-center.on{display:flex;pointer-events:all;}
 .modal-row{display:flex;gap:9px;margin-top:12px;}
 .btn-cancel{flex:1;padding:12px;background:var(--card);border:1px solid var(--brd);border-radius:11px;color:var(--mut);font-family:inherit;font-size:13px;cursor:pointer;}
 .btn-save{flex:2;padding:12px;background:var(--acc);color:#0f1a14;border:none;border-radius:11px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
@@ -1521,9 +1521,13 @@ function openEmojiPicker(targetId){
 }
 function selectEmoji(e){
   if(_emojiTarget){
-    document.getElementById(_emojiTarget).value=e;
-    const btnId=_emojiTarget==='fEmoji'?'fEmojiBtn':'meEmojiBtn';
-    document.getElementById(btnId).textContent=e;
+    // Update hidden input
+    const inp=document.getElementById(_emojiTarget);
+    if(inp) inp.value=e;
+    // Update the corresponding button – find it by convention: input id → button id replaces 'Emoji' with 'EmojiBtn'
+    const btnId=_emojiTarget.replace('Emoji','EmojiBtn');
+    const btn=document.getElementById(btnId);
+    if(btn) btn.textContent=e;
   }
   closeEmojiPicker();
 }
