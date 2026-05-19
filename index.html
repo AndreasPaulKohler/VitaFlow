@@ -1881,7 +1881,8 @@ function renderHome(){
   const bilanzEl=document.getElementById('homeBilanz');
   const recentEl=document.getElementById('homeRecent');
   const yHintHomeEl=document.getElementById('yHintHome');
-  if(!bilanzEl||!recentEl) return;
+  if(!bilanzEl) return;
+  if(recentEl) recentEl.innerHTML='';
 
   // Gestern-Hinweis auf der Startseite spiegeln
   if(yHintHomeEl){
@@ -1938,26 +1939,6 @@ function renderHome(){
         ${eaten===0?'📝 Trag deine erste Mahlzeit ein, um die Bilanz zu sehen.':isPlus?`⚠️ <strong>${balSign}${balance} kcal</strong> Überschuss – etwas Training würde gut tun.`:isDef?`✅ <strong>${Math.abs(balance)} kcal</strong> Defizit – super für dein Ziel!`:`🎯 Heute ausgeglichen.`}
       </div>
     </div>`;
-
-  // Heute trainiert (kompakt, falls vorhanden)
-  const today=todayStr();
-  const todayEntry=history.find(h=>h.date===today);
-  const todayTrain=[...(todayEntry?.logged||[]),...((todayEntry?.plan||[]).filter(e=>e.done))];
-  let recentHtml='';
-  if(todayTrain.length){
-    recentHtml=`<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="font-size:13px;font-weight:600;color:var(--acc)">🏃 Heute trainiert</div>
-        <div style="font-size:11px;color:var(--mut)">${trainBurned} kcal</div>
-      </div>
-      ${todayTrain.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-        <span style="font-size:18px">${e.icon||'🏋️'}</span>
-        <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name}</span>
-        <span style="font-size:12px;color:var(--acc)">${e.kcal} kcal</span>
-      </div>`).join('')}
-    </div>`;
-  }
-  recentEl.innerHTML=recentHtml;
 }
 
 /* ════════ VERLAUF ════════ */
