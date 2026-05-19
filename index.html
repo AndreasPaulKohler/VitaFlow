@@ -366,10 +366,10 @@ select.inp{cursor:pointer;appearance:none;}
       <div><div class="lbl" style="font-size:10px">Fett (g)</div><input id="kiPF" type="number" step="0.1" class="inp" style="padding:8px;font-size:12px"/></div>
      </div>
      <select class="inp" id="kiPT" style="margin-bottom:8px">
-      <option value="frueh">Frühstück</option>
-      <option value="mittag" selected>Mittagessen</option>
-      <option value="abend">Abendessen</option>
-      <option value="snack">Snack</option>
+      <option>🌅 Frühstück</option>
+      <option selected>☀️ Mittagessen</option>
+      <option>🌙 Abendessen</option>
+      <option>🍎 Snack</option>
      </select>
      <div style="display:flex;gap:6px">
       <button class="btn-w" onclick="confirmKIMeal()" style="margin:0;flex:1"><span>✓</span> Hinzufügen</button>
@@ -747,11 +747,22 @@ function syncPrePlannedMeals(today){
 
 /* ════════ INIT ════════ */
 function init(){
+  migrateOldMealTypes();
   checkDayRollover();
   _mealGroupOpen={};  // Fix 3: always start collapsed
   document.getElementById('dateEl').textContent =
     new Date().toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'});
   renderAll();
+}
+
+// Einmalige Migration: alte KI-Mahlzeitentyp-Werte auf das App-Schema mit Emojis umstellen
+function migrateOldMealTypes(){
+  const map={'frueh':'🌅 Frühstück','mittag':'☀️ Mittagessen','abend':'🌙 Abendessen','snack':'🍎 Snack'};
+  let changed=false;
+  const fix=arr=>{(arr||[]).forEach(m=>{if(m&&map[m.type]){m.type=map[m.type];changed=true;}});};
+  fix(meals);
+  (history||[]).forEach(h=>{fix(h.meals);});
+  if(changed){save('vf2_meals',meals);save('vf2_hist',history);}
 }
 
 function renderAll(){
@@ -904,7 +915,7 @@ function showKIPreview(p){
   document.getElementById('kiPF').value=r1(p.fat||0);
   // Mahlzeit-Typ automatisch nach Tageszeit vorbelegen
   const h=new Date().getHours();
-  const guess=h<10?'frueh':h<14?'mittag':h<17?'snack':'abend';
+  const guess=h<10?'🌅 Frühstück':h<14?'☀️ Mittagessen':h<17?'🍎 Snack':'🌙 Abendessen';
   document.getElementById('kiPT').value=guess;
 }
 
