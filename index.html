@@ -247,9 +247,9 @@ select.inp{cursor:pointer;appearance:none;}
   <!-- Letzte Mahlzeiten + Training kompakt -->
   <div id="homeRecent"></div>
   <!-- Schnellzugriff -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
-    <button class="btn-w" onclick="showPg(1)" style="margin:0"><span>🍽️</span> Mahlzeit</button>
-    <button class="btn-w" onclick="showPg(2)" style="margin:0"><span>🏃</span> Training</button>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+    <button class="btn-w" onclick="showPg(1)" style="margin:0;padding:18px 14px;font-size:14px;flex-direction:column;gap:6px;display:flex;align-items:center;justify-content:center"><span style="font-size:26px">🍽️</span><span>Mahlzeit</span></button>
+    <button class="btn-w" onclick="showPg(2)" style="margin:0;padding:18px 14px;font-size:14px;flex-direction:column;gap:6px;display:flex;align-items:center;justify-content:center"><span style="font-size:26px">🏃</span><span>Training</span></button>
   </div>
  </div>
 </div>
@@ -389,6 +389,17 @@ select.inp{cursor:pointer;appearance:none;}
  <div class="sec">
   <div class="sec-title">🏋️ Training</div>
 
+  <!-- ⌚ Tagesverbrauch aus Samsung Health – prominent ganz oben, wird abends eingetragen -->
+  <div class="card" style="background:linear-gradient(160deg,#1c3526,#162a20);border-color:rgba(126,203,143,.25)">
+    <div style="font-size:14px;font-weight:700;color:var(--acc);margin-bottom:4px">⌚ Tagesverbrauch aus Samsung Health</div>
+    <div style="font-size:11px;color:var(--mut);margin-bottom:10px;line-height:1.5">„Gesamtverbrauch" der Galaxy Watch abends hier eintragen → überschreibt Grundumsatz in der Bilanz.</div>
+    <div class="row">
+      <input class="inp g1" id="shTotal" type="number" placeholder="z.B. 2350" oninput="shHint()"/>
+      <button class="btn btn-a" style="padding:11px 16px;font-size:13px" onclick="saveSH()">📱 Speichern</button>
+    </div>
+    <div id="shHintEl" style="font-size:11px;color:var(--acc2);margin-top:6px;min-height:14px"></div>
+  </div>
+
   <!-- 1. Heute absolviert -->
   <div id="doneSec"></div>
 
@@ -414,20 +425,9 @@ select.inp{cursor:pointer;appearance:none;}
        <button class="btn btn-a" style="width:100%;padding:9px;margin-top:4px" onclick="saveTrainFav()">Speichern</button>
      </div>
 
-     <!-- Galaxy Watch -->
+     <!-- Galaxy Watch (Einzeleinheit – Samsung-Total ist nun oben) -->
      <div style="border-top:1px solid var(--brd);padding-top:12px">
-       <div style="font-size:12px;font-weight:600;color:var(--acc);margin-bottom:8px">⌚ Galaxy Watch / Samsung Health</div>
-
-       <!-- SH Total -->
-       <div style="background:var(--bg);border:1px solid rgba(126,203,143,.2);border-radius:11px;padding:11px;margin-bottom:10px">
-         <div style="font-size:11px;font-weight:600;color:var(--acc);margin-bottom:4px">📱 Tagesverbrauch aus Samsung Health</div>
-         <div style="font-size:10px;color:var(--mut);margin-bottom:8px">„Gesamtverbrauch" aus Samsung Health → überschreibt Grundumsatz in der Bilanz</div>
-         <div class="row">
-           <input class="inp g1" id="shTotal" type="number" placeholder="z.B. 2350" oninput="shHint()"/>
-           <button class="btn btn-a" style="padding:9px 13px" onclick="saveSH()">OK</button>
-         </div>
-         <div id="shHintEl" style="font-size:10px;color:var(--acc2);margin-top:4px;min-height:14px"></div>
-       </div>
+       <div style="font-size:12px;font-weight:600;color:var(--acc);margin-bottom:8px">⌚ Galaxy Watch – einzelne Aktivität</div>
 
        <!-- Single workout -->
        <div class="lbl" style="margin-bottom:4px">Aktivität</div>
@@ -449,8 +449,6 @@ select.inp{cursor:pointer;appearance:none;}
      </div>
    </div>
   </div>
-
-  <!-- Trainingsvorschlag wird per renderBilanz() befüllt -->
 
  </div>
 </div>
@@ -1712,8 +1710,8 @@ function renderBilanz(){
           ${eaten===0?'📝 Mahlzeiten eintragen um die Bilanz zu sehen.':isPlus?`⚠️ <strong>${balSign}${balance} kcal</strong> Überschuss heute.`:isDef?`✅ <strong>${Math.abs(balance)} kcal</strong> Defizit – super!`:`🎯 Heute ausgeglichen!`}
         </div>
       </div>
-    </div>
-    ${renderPlanSection()}`;
+    </div>`;
+  // Trainingsvorschlag bewusst entfernt – auf Wunsch des Nutzers nicht mehr im Verlauf-Tab.
 }
 
 function toggleBilanz(){
@@ -1894,78 +1892,69 @@ function renderHome(){
     if(yBal===null||Math.abs(yBal)<50){yHintHomeEl.innerHTML='';}
     else{
       const isPlus=yBal>0;
-      yHintHomeEl.innerHTML=`<div style="background:${isPlus?'rgba(232,201,122,.06)':'rgba(126,203,143,.06)'};border:1px solid ${isPlus?'rgba(232,201,122,.2)':'rgba(126,203,143,.2)'};border-radius:13px;padding:10px 13px;margin-bottom:10px;font-size:12px;line-height:1.7">
+      yHintHomeEl.innerHTML=`<div style="background:${isPlus?'rgba(232,201,122,.06)':'rgba(126,203,143,.06)'};border:1px solid ${isPlus?'rgba(232,201,122,.2)':'rgba(126,203,143,.2)'};border-radius:13px;padding:12px 14px;margin-bottom:12px;font-size:13px;line-height:1.7">
         <span style="font-weight:600;color:${isPlus?'var(--acc2)':'var(--acc)'}">${isPlus?'⬆️ Gestern +'+yBal+' kcal Überschuss':'⬇️ Gestern '+yBal+' kcal Defizit'}</span><br>
         ${isPlus?`Heute ~<strong>${Math.round(yBal/2)} kcal weniger</strong> essen oder mehr trainieren.`:`Gestern gut trainiert! Du darfst heute <strong>${Math.abs(yBal)} kcal extra</strong> essen.`}
       </div>`;
     }
   }
 
-  // Tagesbilanz-Card
+  // Tagesbilanz-Card – prominent, große Zahlen, füllt den Bildschirm
   const {eaten,trainBurned,neatBase,shTotal,totalBurned,balance}=calcBalance();
   const isPlus=balance>50,isDef=balance<-50;
   const balCol=isPlus?'var(--acc2)':isDef?'var(--acc)':'var(--mut)';
   const balSign=isPlus?'+':'';
   const target=calcTarget();
-  // Fortschrittsbalken: wie viel von der Tagesernergie schon gegessen
   const eatenPct=target?Math.min(100,Math.round(eaten/target*100)):0;
   bilanzEl.innerHTML=`
-    <div class="card" style="background:linear-gradient(160deg,#1c3526,#162a20);border-color:rgba(126,203,143,.25)">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
-        <div style="font-size:13px;font-weight:600;color:var(--acc)">⚖️ Heute</div>
-        ${target?`<div style="font-size:10px;color:var(--mut)">Ziel: ${target} kcal</div>`:''}
+    <div class="card" style="background:linear-gradient(160deg,#1c3526,#162a20);border-color:rgba(126,203,143,.25);padding:20px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:var(--acc)">⚖️ Heute</div>
+        ${target?`<div style="font-size:11px;color:var(--mut)">Ziel: ${target} kcal</div>`:''}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
-        <div style="text-align:center"><div style="font-size:20px;font-weight:700;color:var(--txt)">${eaten}</div><div style="font-size:9px;color:var(--mut)">🍽️ Gegessen</div></div>
-        <div style="text-align:center"><div style="font-size:20px;font-weight:700;color:var(--acc)">${totalBurned}</div><div style="font-size:9px;color:var(--mut)">🔥 Verbrannt</div></div>
-        <div style="text-align:center"><div style="font-size:20px;font-weight:700;color:${balCol}">${eaten===0?'–':balSign+balance}</div><div style="font-size:9px;color:var(--mut)">⚖️ Bilanz</div></div>
+
+      <!-- Große Bilanz-Zahl als Hero -->
+      <div style="text-align:center;margin-bottom:18px">
+        <div style="font-size:48px;font-weight:800;color:${balCol};line-height:1">${eaten===0?'–':balSign+balance}</div>
+        <div style="font-size:11px;color:var(--mut);margin-top:4px;letter-spacing:.5px;text-transform:uppercase">${eaten===0?'Noch keine Bilanz':'kcal Bilanz'}</div>
       </div>
-      ${target?`<div style="background:rgba(0,0,0,.25);border-radius:6px;height:6px;overflow:hidden;margin-bottom:6px"><div style="width:${eatenPct}%;height:100%;background:${eatenPct>110?'var(--dan)':eatenPct>95?'var(--acc2)':'var(--acc)'};transition:width .5s"></div></div>
-      <div style="font-size:10px;color:var(--mut);text-align:center">${eatenPct}% des Tagesziels</div>`:''}
-      <div class="bil-msg" style="margin-top:10px;background:${isPlus?'rgba(232,201,122,.08)':isDef?'rgba(126,203,143,.08)':'rgba(126,203,143,.04)'};border:1px solid ${isPlus?'rgba(232,201,122,.2)':'rgba(126,203,143,.2)'}">
+
+      <!-- Gegessen / Verbrannt nebeneinander -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:rgba(0,0,0,.18);border-radius:11px;padding:12px;text-align:center">
+          <div style="font-size:24px;font-weight:700;color:var(--txt)">${eaten}</div>
+          <div style="font-size:10px;color:var(--mut);margin-top:3px">🍽️ Gegessen</div>
+        </div>
+        <div style="background:rgba(0,0,0,.18);border-radius:11px;padding:12px;text-align:center">
+          <div style="font-size:24px;font-weight:700;color:var(--acc)">${totalBurned}</div>
+          <div style="font-size:10px;color:var(--mut);margin-top:3px">🔥 Verbrannt${shTotal>0?' 📱':''}</div>
+        </div>
+      </div>
+
+      ${target?`<div style="background:rgba(0,0,0,.25);border-radius:8px;height:10px;overflow:hidden;margin-bottom:6px"><div style="width:${eatenPct}%;height:100%;background:${eatenPct>110?'var(--dan)':eatenPct>95?'var(--acc2)':'var(--acc)'};transition:width .5s"></div></div>
+      <div style="font-size:11px;color:var(--mut);text-align:center;margin-bottom:14px">${eatenPct}% des Tagesziels</div>`:''}
+
+      <div class="bil-msg" style="margin-top:0;padding:12px 14px;font-size:13px;background:${isPlus?'rgba(232,201,122,.08)':isDef?'rgba(126,203,143,.08)':'rgba(126,203,143,.04)'};border:1px solid ${isPlus?'rgba(232,201,122,.2)':'rgba(126,203,143,.2)'}">
         ${eaten===0?'📝 Trag deine erste Mahlzeit ein, um die Bilanz zu sehen.':isPlus?`⚠️ <strong>${balSign}${balance} kcal</strong> Überschuss – etwas Training würde gut tun.`:isDef?`✅ <strong>${Math.abs(balance)} kcal</strong> Defizit – super für dein Ziel!`:`🎯 Heute ausgeglichen.`}
       </div>
     </div>`;
 
-  // Letzte Mahlzeiten + Trainings (kompakt)
+  // Heute trainiert (kompakt, falls vorhanden)
   const today=todayStr();
   const todayEntry=history.find(h=>h.date===today);
   const todayTrain=[...(todayEntry?.logged||[]),...((todayEntry?.plan||[]).filter(e=>e.done))];
-  const lastMeals=[...meals].slice(-3).reverse();
   let recentHtml='';
-  if(meals.length){
-    recentHtml+=`<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="font-size:13px;font-weight:600;color:var(--acc)">🍽️ Letzte Mahlzeiten</div>
-        <div style="font-size:10px;color:var(--mut)">${meals.length} insgesamt</div>
-      </div>
-      ${lastMeals.map(m=>{
-        const qty=m.qty&&m.qty!==1?`<span style="color:var(--acc2);font-weight:600;margin-right:4px">${m.qty}×</span>`:'';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-          <span style="font-size:16px">${m.emoji||'🍽️'}</span>
-          <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${qty}${m.name}</span>
-          <span style="font-size:11px;color:var(--mut)">${m.kcal} kcal</span>
-        </div>`;
-      }).join('')}
-    </div>`;
-  }
   if(todayTrain.length){
-    recentHtml+=`<div class="card">
+    recentHtml=`<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="font-size:13px;font-weight:600;color:var(--acc)">🏃 Heute trainiert</div>
-        <div style="font-size:10px;color:var(--mut)">${trainBurned} kcal</div>
+        <div style="font-size:11px;color:var(--mut)">${trainBurned} kcal</div>
       </div>
-      ${todayTrain.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-        <span style="font-size:16px">${e.icon||'🏋️'}</span>
-        <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name}</span>
-        <span style="font-size:11px;color:var(--acc)">${e.kcal} kcal</span>
+      ${todayTrain.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        <span style="font-size:18px">${e.icon||'🏋️'}</span>
+        <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name}</span>
+        <span style="font-size:12px;color:var(--acc)">${e.kcal} kcal</span>
       </div>`).join('')}
-    </div>`;
-  }
-  if(!recentHtml){
-    recentHtml=`<div class="card" style="text-align:center;padding:20px 14px">
-      <div style="font-size:30px;margin-bottom:6px;opacity:.6">🌱</div>
-      <div style="font-size:12px;color:var(--mut)">Noch nichts erfasst heute.<br>Leg unten mit einer Mahlzeit oder Training los.</div>
     </div>`;
   }
   recentEl.innerHTML=recentHtml;
