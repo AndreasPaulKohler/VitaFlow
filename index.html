@@ -54,7 +54,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);max-
 
 /* HEADER */
 .hdr{background:linear-gradient(160deg,#1c3a26,#0f1a14);padding:36px 20px 22px;position:relative;overflow:hidden;}
-.hdr::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(126,203,143,.1),transparent 70%);border-radius:50%;}
+.hdr::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(126,203,143,.1),transparent 70%);border-radius:50%;pointer-events:none;}
+.hdr-top{position:relative;z-index:1;}
 .hdr-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;}
 .app-name{font-family:'Playfair Display',serif;font-size:26px;color:var(--acc);}
 .app-sub{font-size:11px;color:var(--mut);margin-top:2px;}
