@@ -234,8 +234,9 @@ select.inp{cursor:pointer;appearance:none;}
       <div style="font-size:9px;color:var(--mut)">kcal</div>
     </div>
     <div style="text-align:center">
-      <div id="hdrBilanz" style="font-size:24px;font-weight:700;color:var(--mut)">–</div>
-      <div style="font-size:9px;color:var(--mut)">⚖️ Bilanz kcal</div>
+      <div style="font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">⚖️ Bilanz</div>
+      <div id="hdrBilanz" style="font-size:26px;font-weight:700;color:var(--mut);line-height:1">–</div>
+      <div style="font-size:9px;color:var(--mut)">kcal</div>
     </div>
     <div style="text-align:right">
       <div style="font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">🔥 Verbrannt</div>
@@ -276,10 +277,10 @@ select.inp{cursor:pointer;appearance:none;}
 
   <!-- Method tabs -->
   <div class="tabs" style="margin-top:10px">
-    <button class="tab" id="tabM" onclick="swTab('manual')"><span class="ti">✏️</span>Manuell</button>
-    <button class="tab" id="tabB" onclick="swTab('barcode')"><span class="ti">📷</span>Barcode</button>
     <button class="tab" id="tabD" onclick="swTab('fav')"><span class="ti">⭐</span>Favoriten</button>
     <button class="tab" id="tabK" onclick="swTab('ki')"><span class="ti">✨</span>KI</button>
+    <button class="tab" id="tabB" onclick="swTab('barcode')"><span class="ti">📷</span>Barcode</button>
+    <button class="tab" id="tabM" onclick="swTab('manual')"><span class="ti">✏️</span>Manuell</button>
   </div>
 
   <!-- MANUAL -->
@@ -675,8 +676,10 @@ select.inp{cursor:pointer;appearance:none;}
 <div class="modal-bg-center" id="quickModal">
  <div class="modal-center">
   <div id="quickName" style="font-size:16px;font-weight:600;text-align:center;margin-bottom:14px"></div>
-  <div class="g" style="margin-bottom:8px"><div class="lbl" style="text-align:center">Minuten</div><input class="inp" id="quickMin" type="number" min="5" step="5" placeholder="30" oninput="quickCalc()" style="text-align:center;font-size:18px"/></div>
-  <div id="quickKcalEl" style="text-align:center;font-size:15px;font-weight:600;color:var(--acc2);margin-bottom:14px;min-height:22px"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+    <div class="g"><div class="lbl" style="text-align:center">Minuten</div><input class="inp" id="quickMin" type="number" min="1" step="5" placeholder="30" oninput="quickCalc()" style="text-align:center;font-size:18px"/></div>
+    <div class="g"><div class="lbl" style="text-align:center">kcal</div><input class="inp" id="quickKcal" type="number" min="0" placeholder="–" style="text-align:center;font-size:18px;color:var(--acc2);font-weight:600"/></div>
+  </div>
   <div class="modal-row">
     <button class="btn-cancel" onclick="closeQuick()">Abbrechen</button>
     <button class="btn-save" onclick="quickSave()">✓ Speichern</button>
@@ -1382,7 +1385,7 @@ function updateStats(){
   const hdrBi=document.getElementById('hdrBilanz');
   if(hdrE) hdrE.textContent=t;
   if(hdrBu) hdrBu.textContent=totalBurned;
-  if(hdrBd) hdrBd.textContent=shTotal>0?'kcal (Samsung Health)':`${neatBase} Grund + ${trainBurned} Training kcal`;
+  if(hdrBd) hdrBd.textContent='kcal';
   if(hdrBi){
     hdrBi.textContent=t===0?'–':(isPlus?'+':'')+balance;
     hdrBi.style.color=isPlus?'var(--acc2)':isDef?'var(--acc)':'var(--mut)';
@@ -1476,9 +1479,12 @@ function renderTrainFavDetail(){
   const w=document.getElementById('trainFavDetail');
   if(!trainFavs.length){w.innerHTML='';return;}
   const kg=profile?.weight||75;
-  w.innerHTML=trainFavs.map(f=>`
+  const defMin=30;
+  w.innerHTML=trainFavs.map(f=>{
+    const defKcal=Math.round(f.kpm*(kg/70)*defMin);
+    return `
     <div style="background:var(--bg);border:1px solid var(--brd);border-radius:10px;padding:9px;margin-bottom:6px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:7px"><span style="font-size:18px">${f.icon}</span><div><div style="font-size:12px;font-weight:600">${f.name}</div><div style="font-size:10px;color:var(--mut)">${f.kpm} kcal/Min</div></div></div>
         <div style="display:flex;gap:4px">
           <button onclick="openTrainFavEdit(${f.id})" class="edit-btn">✏️</button>
@@ -1486,29 +1492,36 @@ function renderTrainFavDetail(){
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:5px;align-items:flex-end">
-        <div class="g"><div class="lbl">Min.</div><input class="inp" id="tfd${f.id}" type="number" step="5" placeholder="30" oninput="calcTF(${f.id})" style="width:100%"/></div>
-        <div style="background:var(--sur);border:1px solid var(--brd);border-radius:8px;padding:9px;font-size:12px;font-weight:600;color:var(--acc2);text-align:center;align-self:flex-end" id="tfr${f.id}">–</div>
+        <div class="g"><div class="lbl">Min.</div><input class="inp" id="tfd${f.id}" type="number" step="5" value="${defMin}" oninput="calcTF(${f.id})" style="width:100%"/></div>
+        <div class="g"><div class="lbl">kcal</div><input class="inp" id="tfk${f.id}" type="number" value="${defKcal}" style="width:100%;color:var(--acc2);font-weight:600"/></div>
         <button class="btn btn-a" onclick="addTrainFav(${f.id})" style="padding:9px 12px;align-self:flex-end">+</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function calcTF(id){
+  // Minuten geändert → kcal-Feld automatisch nachziehen (User kann später noch manuell anpassen)
   const f=trainFavs.find(x=>x.id===id);if(!f)return;
   const min=parseFloat(document.getElementById('tfd'+id)?.value)||0;
   const kg=profile?.weight||75;
-  document.getElementById('tfr'+id).textContent=min?Math.round(f.kpm*(kg/70)*min)+' kcal':'–';
+  const kcalEl=document.getElementById('tfk'+id);
+  if(kcalEl) kcalEl.value=min?Math.round(f.kpm*(kg/70)*min):'';
 }
 
 function addTrainFav(id,minOverride){
   const f=trainFavs.find(x=>x.id===id);if(!f)return;
   const min=minOverride||parseFloat(document.getElementById('tfd'+id)?.value)||0;
   if(!min){toast('Minuten eingeben!',true);return;}
+  // Wenn der User die kcal manuell überschrieben hat → diesen Wert nehmen; sonst rechnen
   const kg=profile?.weight||75;
-  const kcal=Math.round(f.kpm*(kg/70)*min);
+  let kcal=parseFloat(document.getElementById('tfk'+id)?.value);
+  if(!kcal||isNaN(kcal)) kcal=Math.round(f.kpm*(kg/70)*min);
   logTraining({name:f.name,icon:f.icon,minutes:min,kcal,dist:0,src:'fav',details:`${min} Minuten`,description:'Aus Trainings-Favoriten'});
-  if(document.getElementById('tfd'+id)) document.getElementById('tfd'+id).value='';
-  if(document.getElementById('tfr'+id)) document.getElementById('tfr'+id).textContent='–';
+  // Reset auf Defaults
+  const defMin=30;
+  if(document.getElementById('tfd'+id)) document.getElementById('tfd'+id).value=defMin;
+  if(document.getElementById('tfk'+id)) document.getElementById('tfk'+id).value=Math.round(f.kpm*(kg/70)*defMin);
 }
 
 function toggleAddTrainFav(){
@@ -1534,22 +1547,29 @@ function openQuick(id){
   const f=trainFavs.find(x=>x.id===id);if(!f)return;
   quickFavId=id;
   document.getElementById('quickName').textContent=f.icon+' '+f.name;
-  document.getElementById('quickMin').value='';
-  document.getElementById('quickKcalEl').textContent='';
+  // Default-Werte: 30 Min, kcal automatisch berechnet
+  const defMin=30;
+  const kg=profile?.weight||75;
+  document.getElementById('quickMin').value=defMin;
+  document.getElementById('quickKcal').value=Math.round(f.kpm*(kg/70)*defMin);
   document.getElementById('quickModal').classList.add('on');
 }
 function closeQuick(){document.getElementById('quickModal').classList.remove('on');quickFavId=null;}
 function quickCalc(){
+  // Minuten-Eingabe → kcal automatisch neu berechnen (User kann es danach manuell überschreiben)
   const f=trainFavs.find(x=>x.id===quickFavId);if(!f)return;
   const min=parseFloat(document.getElementById('quickMin').value)||0;
   const kg=profile?.weight||75;
-  document.getElementById('quickKcalEl').textContent=min?'≈ '+Math.round(f.kpm*(kg/70)*min)+' kcal':'';
+  document.getElementById('quickKcal').value=min?Math.round(f.kpm*(kg/70)*min):'';
 }
 function quickSave(){
   const f=trainFavs.find(x=>x.id===quickFavId);if(!f)return;
   const min=parseFloat(document.getElementById('quickMin').value)||0;
+  const kcal=parseFloat(document.getElementById('quickKcal').value)||0;
   if(!min){toast('Minuten eingeben!',true);return;}
-  addTrainFav(quickFavId,min);
+  if(!kcal){toast('Kalorien eingeben!',true);return;}
+  // Manuelle kcal direkt verwenden (kann von der Berechnung abweichen)
+  logTraining({name:f.name,icon:f.icon,minutes:min,kcal,dist:0,src:'fav',details:`${min} Minuten`,description:'Aus Trainings-Favoriten'});
   closeQuick();
 }
 
