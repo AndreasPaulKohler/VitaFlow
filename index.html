@@ -211,7 +211,7 @@ select.inp{cursor:pointer;appearance:none;}
 .vf-thinking{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:rgba(126,203,143,.05);border:1px solid rgba(126,203,143,.2);border-radius:11px;margin-top:10px;font-size:13px;color:var(--acc);animation:vfPulse 1.6s ease-in-out infinite}
 
 /* Tastatur-/Eingabefeld-Stabilität (Samsung Internet, PWA) */
-#kiInput{font-size:17px!important;line-height:1.4;-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;caret-color:var(--acc);resize:none;min-height:110px;}
+#kiInput{font-size:16px;line-height:1.4;caret-color:var(--acc);resize:vertical;min-height:110px;}
 </style>
 </head>
 <body>
@@ -356,15 +356,18 @@ select.inp{cursor:pointer;appearance:none;}
   <div id="panelKI" style="display:none">
    <div class="card">
     <div class="card-title">✨ KI-Nährwert-Schätzung</div>
-    <div style="position:relative">
-      <textarea id="kiInput"
-        placeholder="Hier Mahlzeit eingeben…"
-        lang="de"
-        spellcheck="true"
-        autocapitalize="sentences"
-        rows="4"
-        style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--brd);border-radius:10px;color:var(--txt);font-family:inherit;box-sizing:border-box;display:block"></textarea>
-    </div>
+    <textarea id="kiInput"
+      name="vfMealDesc"
+      placeholder="Hier Mahlzeit eingeben…"
+      lang="de"
+      spellcheck="true"
+      autocomplete="on"
+      autocorrect="on"
+      autocapitalize="sentences"
+      inputmode="text"
+      enterkeyhint="enter"
+      rows="4"
+      style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--brd);border-radius:10px;color:var(--txt);font-family:inherit;box-sizing:border-box;display:block"></textarea>
 
     <!-- Optionaler Foto-/Screenshot-Upload: Kamera (capture) ODER Galerie -->
     <input type="file" id="kiCamInput" accept="image/*" capture="environment" style="display:none" onchange="handleKIImage(event)"/>
@@ -626,6 +629,19 @@ select.inp{cursor:pointer;appearance:none;}
  </div>
 </div>
 
+<!-- Copy Training Modal -->
+<div class="modal-bg" id="copyTrainModal">
+ <div class="modal-box">
+  <div class="modal-title">📋 Training kopieren</div>
+  <div id="copyTrainPreview" style="font-size:13px;color:var(--mut);margin-bottom:12px;padding:10px 12px;background:rgba(0,0,0,.2);border-radius:10px"></div>
+  <div class="g"><div class="lbl">Datum</div><input class="inp" id="copyTrainDate" type="date"/></div>
+  <div class="modal-row">
+    <button class="btn-cancel" onclick="closeCopyTrain()">Abbrechen</button>
+    <button class="btn-save" onclick="confirmCopyTrain()">Hinzufügen</button>
+  </div>
+ </div>
+</div>
+
 <!-- Emoji Picker Modal -->
 <div class="modal-bg-center" id="emojiModal">
  <div class="modal-center">
@@ -802,6 +818,7 @@ function syncPrePlannedMeals(today){
 /* ════════ INIT ════════ */
 function init(){
   migrateOldMealTypes();
+  migrateDateFormatDuplicates();
   checkDayRollover();
   _mealGroupOpen={};  // Fix 3: always start collapsed
   document.getElementById('dateEl').textContent =
@@ -817,6 +834,42 @@ function migrateOldMealTypes(){
   fix(meals);
   (history||[]).forEach(h=>{fix(h.meals);});
   if(changed){save('vf2_meals',meals);save('vf2_hist',history);}
+}
+
+// Migration: history-Einträge im Format "22.05.2026" (mit führenden Nullen) auf das System-Format
+// "22.5.2026" normalisieren und Duplikate zusammenführen.
+// Ursache: copyMealToToday hatte in einer früheren Version "dd.mm.yyyy" statt "d.m.yyyy" produziert.
+function migrateDateFormatDuplicates(){
+  if(!Array.isArray(history)||!history.length)return;
+  const norm=s=>{
+    const p=String(s).split('.');
+    if(p.length!==3)return s;
+    return parseInt(p[0],10)+'.'+parseInt(p[1],10)+'.'+p[2];
+  };
+  const byKey={};
+  let merged=0;
+  history.forEach(h=>{
+    const k=norm(h.date);
+    if(byKey[k]){
+      // Merge: bestehender Eintrag bleibt, neuer wird reinkopiert
+      const tgt=byKey[k];
+      (h.meals||[]).forEach(m=>{(tgt.meals=tgt.meals||[]).push(m);});
+      (h.logged||[]).forEach(e=>{(tgt.logged=tgt.logged||[]).push(e);});
+      (h.plan||[]).forEach(e=>{(tgt.plan=tgt.plan||[]).push(e);});
+      if(h.shTotalBurn&&!tgt.shTotalBurn)tgt.shTotalBurn=h.shTotalBurn;
+      tgt.kcalIn=(tgt.meals||[]).reduce((a,m)=>a+(m.kcal||0),0);
+      delete tgt.balance; // → wird beim nächsten Render aus den neuen Daten berechnet
+      merged++;
+    }else{
+      h.date=k;
+      byKey[k]=h;
+    }
+  });
+  if(merged>0){
+    history=Object.values(byKey);
+    save('vf2_hist',history);
+    console.log('Migration: '+merged+' Datums-Duplikate zusammengeführt');
+  }
 }
 
 function renderAll(){
@@ -2119,7 +2172,19 @@ function isFutureDate(s){
   return parseDateDE(s).getTime()>today.getTime();
 }
 
-// Mahlzeit aus dem Verlauf kopieren – öffnet Modal mit Datum + Tageszeit (default: heute + zur Uhrzeit passende Mahlzeit)
+// Hilfsfunktion: ISO-Datum (yyyy-mm-dd) → dd.m.yyyy (passend zu todayStr / toLocaleDateString)
+function isoToLocaleDE(iso){
+  const [Y,M,D]=iso.split('-');
+  return parseInt(D,10)+'.'+parseInt(M,10)+'.'+Y;
+}
+// Hilfsfunktion: dd.m.yyyy oder dd.mm.yyyy → ISO yyyy-mm-dd für <input type="date">
+function deToIso(de){
+  const p=String(de).split('.');
+  if(p.length!==3)return '';
+  return p[2]+'-'+String(p[1]).padStart(2,'0')+'-'+String(p[0]).padStart(2,'0');
+}
+
+// Mahlzeit aus dem Verlauf kopieren – öffnet Modal mit Datum + Tageszeit
 let _copySrc=null;
 function copyMealToToday(date,mealId){
   const entry=history.find(h=>h.date===date);
@@ -2127,7 +2192,7 @@ function copyMealToToday(date,mealId){
   const orig=entry.meals.find(m=>m.id===mealId);
   if(!orig){toast('Mahlzeit nicht gefunden',true);return;}
   _copySrc={...orig};
-  // Default-Datum: heute (yyyy-mm-dd für <input type=date>)
+  // Default-Datum: heute (ISO für <input type="date">)
   const t=new Date();
   const iso=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
   document.getElementById('copyMealDate').value=iso;
@@ -2154,18 +2219,15 @@ function confirmCopyMeal(){
   const dateIso=document.getElementById('copyMealDate').value;
   const ty=document.getElementById('copyMealType').value;
   if(!dateIso){toast('Bitte Datum wählen',true);return;}
-  // ISO → "dd.mm.yyyy"
-  const [Y,M,D]=dateIso.split('-');
-  const dateDE=D+'.'+M+'.'+Y;
+  // WICHTIG: gleiches Format wie todayStr() → ohne führende Nullen!
+  const dateDE=isoToLocaleDE(dateIso);
   const today=todayStr();
   const copy={..._copySrc,id:Date.now(),type:ty,date:dateDE};
   const nm=_copySrc.name;
   if(dateDE===today){
-    // → in heute (meals[])
     meals.push(copy);
     save('vf2_meals',meals);
   }else{
-    // → in history (vergangener oder zukünftiger Tag)
     let idx=history.findIndex(h=>h.date===dateDE);
     if(idx<0){history.unshift({date:dateDE,kcalIn:0,plan:[],logged:[],meals:[]});idx=0;}
     if(!history[idx].meals)history[idx].meals=[];
@@ -2175,6 +2237,46 @@ function confirmCopyMeal(){
   }
   closeCopyMeal();
   renderFoodList();updateStats();renderBilanz();renderVerlauf();renderHome();
+  toast('📋 '+nm+' kopiert ✓');
+}
+
+// Training aus dem Verlauf kopieren – öffnet Modal mit Datum
+let _copyTrainSrc=null;
+function copyTrainingToToday(date,trainId){
+  const entry=history.find(h=>h.date===date);
+  if(!entry){toast('Training nicht gefunden',true);return;}
+  // Suche in logged und plan.done
+  let orig=(entry.logged||[]).find(e=>e.id===trainId);
+  if(!orig)orig=(entry.plan||[]).find(e=>e.id===trainId&&e.done);
+  if(!orig){toast('Training nicht gefunden',true);return;}
+  _copyTrainSrc={...orig};
+  const t=new Date();
+  const iso=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  document.getElementById('copyTrainDate').value=iso;
+  const emo=orig.icon||'🏋️';
+  document.getElementById('copyTrainPreview').innerHTML=
+    `<div style="font-weight:600;color:var(--txt);margin-bottom:4px">${emo} ${orig.name}</div>
+     <div style="font-size:11px">${orig.kcal} kcal${orig.min?' · '+orig.min+' Min':''}</div>`;
+  document.getElementById('copyTrainModal').classList.add('on');
+}
+function closeCopyTrain(){
+  document.getElementById('copyTrainModal').classList.remove('on');
+  _copyTrainSrc=null;
+}
+function confirmCopyTrain(){
+  if(!_copyTrainSrc){closeCopyTrain();return;}
+  const dateIso=document.getElementById('copyTrainDate').value;
+  if(!dateIso){toast('Bitte Datum wählen',true);return;}
+  const dateDE=isoToLocaleDE(dateIso);
+  const nm=_copyTrainSrc.name;
+  const copy={..._copyTrainSrc,id:Date.now()};
+  let idx=history.findIndex(h=>h.date===dateDE);
+  if(idx<0){history.unshift({date:dateDE,kcalIn:0,plan:[],logged:[],meals:[]});idx=0;}
+  if(!history[idx].logged)history[idx].logged=[];
+  history[idx].logged.push(copy);
+  save('vf2_hist',history);
+  closeCopyTrain();
+  renderDone();renderBilanz();renderVerlauf();renderHome();
   toast('📋 '+nm+' kopiert ✓');
 }
 
@@ -2235,7 +2337,11 @@ function renderVerlauf(){
       <div id="vlogb${i}" style="display:none" class="vlog-body">
         ${statsRow}
         ${allDone.length?`<div style="margin-top:10px;font-size:10px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Training</div>
-        ${allDone.map(e=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span>${e.icon||'🏋️'} ${e.name}</span><span style="color:var(--acc)">${e.kcal} kcal</span></div>`).join('')}`:''}
+        ${allDone.map(e=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.icon||'🏋️'} ${e.name}</span>
+          <span style="color:var(--acc);flex-shrink:0">${e.kcal} kcal</span>
+          ${isToday||!e.id?'':`<button onclick="event.stopPropagation();copyTrainingToToday('${h.date}',${e.id})" title="Kopieren …" style="background:rgba(126,203,143,.12);border:1px solid rgba(126,203,143,.3);color:var(--acc);border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;font-family:inherit;flex-shrink:0">📋</button>`}
+        </div>`).join('')}`:''}
         ${(()=>{
           // Bug-Fix: für HEUTE die aktuellen meals[] verwenden (history.meals ist nach syncPrePlannedMeals leer);
           // für andere Tage h.meals
