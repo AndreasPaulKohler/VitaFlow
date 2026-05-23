@@ -838,7 +838,6 @@ function migrateOldMealTypes(){
 
 // Migration: history-Einträge im Format "22.05.2026" (mit führenden Nullen) auf das System-Format
 // "22.5.2026" normalisieren und Duplikate zusammenführen.
-// Ursache: copyMealToToday hatte in einer früheren Version "dd.mm.yyyy" statt "d.m.yyyy" produziert.
 function migrateDateFormatDuplicates(){
   if(!Array.isArray(history)||!history.length)return;
   const norm=s=>{
@@ -851,14 +850,13 @@ function migrateDateFormatDuplicates(){
   history.forEach(h=>{
     const k=norm(h.date);
     if(byKey[k]){
-      // Merge: bestehender Eintrag bleibt, neuer wird reinkopiert
       const tgt=byKey[k];
       (h.meals||[]).forEach(m=>{(tgt.meals=tgt.meals||[]).push(m);});
       (h.logged||[]).forEach(e=>{(tgt.logged=tgt.logged||[]).push(e);});
       (h.plan||[]).forEach(e=>{(tgt.plan=tgt.plan||[]).push(e);});
       if(h.shTotalBurn&&!tgt.shTotalBurn)tgt.shTotalBurn=h.shTotalBurn;
       tgt.kcalIn=(tgt.meals||[]).reduce((a,m)=>a+(m.kcal||0),0);
-      delete tgt.balance; // → wird beim nächsten Render aus den neuen Daten berechnet
+      delete tgt.balance;
       merged++;
     }else{
       h.date=k;
@@ -2105,7 +2103,6 @@ function renderHome(){
   const balCol=isPlus?'var(--acc2)':isDef?'var(--acc)':'var(--mut)';
   const balSign=isPlus?'+':'';
   // Dynamisches Tagesziel: an heutigen totalBurned gekoppelt + Ziel-Offset
-  // → 100% entspricht exakt der gewünschten Bilanz (-400 / 0 / +300)
   const goalOffset=profile?.goal==='gain'?300:profile?.goal==='deficit'?-400:0;
   const target=totalBurned?totalBurned+goalOffset:null;
   const eatenPct=target&&target>0?Math.min(100,Math.round(eaten/target*100)):0;
@@ -2154,14 +2151,6 @@ function renderHome(){
 }
 
 /* ════════ VERLAUF ════════ */
-function toggleBurnedBreakdown(){
-  const el=document.getElementById('burnedBreakdown');
-  const ic=document.getElementById('burnedToggleIcon');
-  if(!el)return;
-  const open=el.style.display==='none';
-  el.style.display=open?'block':'none';
-  if(ic)ic.textContent=open?'▴':'▾';
-}
 // Hilfsfunktion: deutsches Datum "dd.mm.yyyy" als Date-Objekt (Mitternacht)
 function parseDateDE(s){
   const p=String(s).split('.');
@@ -2177,12 +2166,6 @@ function isoToLocaleDE(iso){
   const [Y,M,D]=iso.split('-');
   return parseInt(D,10)+'.'+parseInt(M,10)+'.'+Y;
 }
-// Hilfsfunktion: dd.m.yyyy oder dd.mm.yyyy → ISO yyyy-mm-dd für <input type="date">
-function deToIso(de){
-  const p=String(de).split('.');
-  if(p.length!==3)return '';
-  return p[2]+'-'+String(p[1]).padStart(2,'0')+'-'+String(p[0]).padStart(2,'0');
-}
 
 // Mahlzeit aus dem Verlauf kopieren – öffnet Modal mit Datum + Tageszeit
 let _copySrc=null;
@@ -2192,18 +2175,15 @@ function copyMealToToday(date,mealId){
   const orig=entry.meals.find(m=>m.id===mealId);
   if(!orig){toast('Mahlzeit nicht gefunden',true);return;}
   _copySrc={...orig};
-  // Default-Datum: heute (ISO für <input type="date">)
   const t=new Date();
   const iso=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
   document.getElementById('copyMealDate').value=iso;
-  // Default-Mahlzeit: aus aktueller Uhrzeit ableiten
   const h=t.getHours();
   let defTy='🍎 Snack';
   if(h>=5&&h<11)defTy='🌅 Frühstück';
   else if(h>=11&&h<15)defTy='☀️ Mittagessen';
   else if(h>=17&&h<22)defTy='🌙 Abendessen';
   document.getElementById('copyMealType').value=defTy;
-  // Preview
   const emo=orig.emoji||'🍽️';
   document.getElementById('copyMealPreview').innerHTML=
     `<div style="font-weight:600;color:var(--txt);margin-bottom:4px">${emo} ${orig.name}</div>
@@ -2219,7 +2199,6 @@ function confirmCopyMeal(){
   const dateIso=document.getElementById('copyMealDate').value;
   const ty=document.getElementById('copyMealType').value;
   if(!dateIso){toast('Bitte Datum wählen',true);return;}
-  // WICHTIG: gleiches Format wie todayStr() → ohne führende Nullen!
   const dateDE=isoToLocaleDE(dateIso);
   const today=todayStr();
   const copy={..._copySrc,id:Date.now(),type:ty,date:dateDE};
@@ -2233,6 +2212,7 @@ function confirmCopyMeal(){
     if(!history[idx].meals)history[idx].meals=[];
     history[idx].meals.push(copy);
     history[idx].kcalIn=history[idx].meals.reduce((a,m)=>a+(m.kcal||0),0);
+    delete history[idx].balance;
     save('vf2_hist',history);
   }
   closeCopyMeal();
@@ -2240,12 +2220,11 @@ function confirmCopyMeal(){
   toast('📋 '+nm+' kopiert ✓');
 }
 
-// Training aus dem Verlauf kopieren – öffnet Modal mit Datum
+// Training aus dem Verlauf kopieren
 let _copyTrainSrc=null;
 function copyTrainingToToday(date,trainId){
   const entry=history.find(h=>h.date===date);
   if(!entry){toast('Training nicht gefunden',true);return;}
-  // Suche in logged und plan.done
   let orig=(entry.logged||[]).find(e=>e.id===trainId);
   if(!orig)orig=(entry.plan||[]).find(e=>e.id===trainId&&e.done);
   if(!orig){toast('Training nicht gefunden',true);return;}
@@ -2256,7 +2235,7 @@ function copyTrainingToToday(date,trainId){
   const emo=orig.icon||'🏋️';
   document.getElementById('copyTrainPreview').innerHTML=
     `<div style="font-weight:600;color:var(--txt);margin-bottom:4px">${emo} ${orig.name}</div>
-     <div style="font-size:11px">${orig.kcal} kcal${orig.min?' · '+orig.min+' Min':''}</div>`;
+     <div style="font-size:11px">${orig.kcal} kcal${orig.minutes?' · '+orig.minutes+' Min':''}</div>`;
   document.getElementById('copyTrainModal').classList.add('on');
 }
 function closeCopyTrain(){
@@ -2274,10 +2253,55 @@ function confirmCopyTrain(){
   if(idx<0){history.unshift({date:dateDE,kcalIn:0,plan:[],logged:[],meals:[]});idx=0;}
   if(!history[idx].logged)history[idx].logged=[];
   history[idx].logged.push(copy);
+  delete history[idx].balance;
   save('vf2_hist',history);
   closeCopyTrain();
   renderDone();renderBilanz();renderVerlauf();renderHome();
   toast('📋 '+nm+' kopiert ✓');
+}
+
+// Mahlzeit aus einem vergangenen Tag löschen (mit Bestätigung)
+function deleteMealFromHistory(date,mealId){
+  const idx=history.findIndex(h=>h.date===date);
+  if(idx<0){toast('Tag nicht gefunden',true);return;}
+  const entry=history[idx];
+  if(!entry.meals){toast('Keine Mahlzeiten an diesem Tag',true);return;}
+  const meal=entry.meals.find(m=>m.id===mealId);
+  if(!meal){toast('Mahlzeit nicht gefunden',true);return;}
+  if(!confirm(`Mahlzeit „${meal.name}" (${meal.kcal} kcal) am ${date} wirklich löschen?`))return;
+  entry.meals=entry.meals.filter(m=>m.id!==mealId);
+  entry.kcalIn=entry.meals.reduce((a,m)=>a+(m.kcal||0),0);
+  delete entry.balance;
+  save('vf2_hist',history);
+  renderVerlauf();renderHome();
+  toast('🗑 '+meal.name+' gelöscht');
+}
+
+// Training aus einem vergangenen Tag löschen
+function deleteTrainingFromHistory(date,trainId){
+  const idx=history.findIndex(h=>h.date===date);
+  if(idx<0){toast('Tag nicht gefunden',true);return;}
+  const entry=history[idx];
+  let arr=null,foundIdx=-1;
+  if(entry.logged){foundIdx=entry.logged.findIndex(e=>e.id===trainId);if(foundIdx>=0)arr=entry.logged;}
+  if(!arr&&entry.plan){foundIdx=entry.plan.findIndex(e=>e.id===trainId);if(foundIdx>=0)arr=entry.plan;}
+  if(!arr){toast('Training nicht gefunden',true);return;}
+  const ex=arr[foundIdx];
+  if(!confirm(`Training „${ex.name}" (${ex.kcal} kcal) am ${date} wirklich löschen?`))return;
+  arr.splice(foundIdx,1);
+  delete entry.balance;
+  save('vf2_hist',history);
+  renderVerlauf();renderHome();
+  toast('🗑 '+ex.name+' gelöscht');
+}
+
+function toggleBurnedBreakdown(){
+  const el=document.getElementById('burnedBreakdown');
+  const ic=document.getElementById('burnedToggleIcon');
+  if(!el)return;
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  if(ic)ic.textContent=open?'▴':'▾';
 }
 
 function renderVerlauf(){
@@ -2340,7 +2364,8 @@ function renderVerlauf(){
         ${allDone.map(e=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)">
           <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.icon||'🏋️'} ${e.name}</span>
           <span style="color:var(--acc);flex-shrink:0">${e.kcal} kcal</span>
-          ${isToday||!e.id?'':`<button onclick="event.stopPropagation();copyTrainingToToday('${h.date}',${e.id})" title="Kopieren …" style="background:rgba(126,203,143,.12);border:1px solid rgba(126,203,143,.3);color:var(--acc);border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;font-family:inherit;flex-shrink:0">📋</button>`}
+          ${isToday||!e.id?'':`<button onclick="event.stopPropagation();copyTrainingToToday('${h.date}',${e.id})" title="Kopieren …" style="background:rgba(126,203,143,.12);border:1px solid rgba(126,203,143,.3);color:var(--acc);border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;font-family:inherit;flex-shrink:0">📋</button>
+          <button onclick="event.stopPropagation();deleteTrainingFromHistory('${h.date}',${e.id})" title="Löschen" style="background:rgba(232,90,90,.12);border:1px solid rgba(232,90,90,.3);color:var(--dan);border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;font-family:inherit;flex-shrink:0">🗑</button>`}
         </div>`).join('')}`:''}
         ${(()=>{
           // Bug-Fix: für HEUTE die aktuellen meals[] verwenden (history.meals ist nach syncPrePlannedMeals leer);
@@ -2351,7 +2376,8 @@ function renderVerlauf(){
             ${mealList.map(m=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
               <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.emoji||'🍽️'} ${m.name}</span>
               <span style="color:var(--mut);flex-shrink:0">${m.kcal} kcal</span>
-              ${isToday?'':`<button onclick="event.stopPropagation();copyMealToToday('${h.date}',${m.id})" title="Kopieren …" style="background:rgba(126,203,143,.12);border:1px solid rgba(126,203,143,.3);color:var(--acc);border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;font-family:inherit;flex-shrink:0">📋</button>`}
+              ${isToday?'':`<button onclick="event.stopPropagation();copyMealToToday('${h.date}',${m.id})" title="Kopieren …" style="background:rgba(126,203,143,.12);border:1px solid rgba(126,203,143,.3);color:var(--acc);border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;font-family:inherit;flex-shrink:0">📋</button>
+              <button onclick="event.stopPropagation();deleteMealFromHistory('${h.date}',${m.id})" title="Löschen" style="background:rgba(232,90,90,.12);border:1px solid rgba(232,90,90,.3);color:var(--dan);border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;font-family:inherit;flex-shrink:0">🗑</button>`}
             </div>`).join('')}`;
         })()}
       </div>
