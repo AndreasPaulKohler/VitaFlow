@@ -357,11 +357,10 @@ select.inp{cursor:pointer;appearance:none;}
    <div class="card">
     <div class="card-title">✨ KI-Nährwert-Schätzung</div>
     <textarea id="kiInput"
-      name="vfMealDesc"
       placeholder="Hier Mahlzeit eingeben…"
       lang="de"
       spellcheck="true"
-      autocomplete="on"
+      autocomplete="off"
       autocorrect="on"
       autocapitalize="sentences"
       inputmode="text"
@@ -369,13 +368,15 @@ select.inp{cursor:pointer;appearance:none;}
       rows="4"
       style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--brd);border-radius:10px;color:var(--txt);font-family:inherit;box-sizing:border-box;display:block"></textarea>
 
-    <!-- Optionaler Foto-/Screenshot-Upload: Kamera (capture) ODER Galerie -->
+    <!-- Eingabe-Optionen: Kamera / Galerie / Mikrofon -->
     <input type="file" id="kiCamInput" accept="image/*" capture="environment" style="display:none" onchange="handleKIImage(event)"/>
     <input type="file" id="kiImageInput" accept="image/*" style="display:none" onchange="handleKIImage(event)"/>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
-      <button class="btn-g" style="padding:10px" onclick="document.getElementById('kiCamInput').click()"><span>📸</span> Foto aufnehmen</button>
-      <button class="btn-g" style="padding:10px" onclick="document.getElementById('kiImageInput').click()"><span>🖼️</span> Aus Galerie</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px">
+      <button class="btn-g" style="padding:10px;font-size:12px" onclick="document.getElementById('kiCamInput').click()"><span>📸</span> Foto</button>
+      <button class="btn-g" style="padding:10px;font-size:12px" onclick="document.getElementById('kiImageInput').click()"><span>🖼️</span> Galerie</button>
+      <button class="btn-g" id="kiMicBtn" style="padding:10px;font-size:12px" onclick="toggleKISpeech()"><span id="kiMicIcon">🎤</span> <span id="kiMicLabel">Sprache</span></button>
     </div>
+    <div id="kiSpeechStatus" style="display:none;font-size:11px;color:var(--mut);margin-top:6px;text-align:center"></div>
     <div id="kiImagePreview" style="display:none;margin-top:8px;background:var(--bg);border:1px solid var(--brd);border-radius:10px;padding:8px;position:relative">
       <img id="kiImageThumb" style="max-width:100%;max-height:160px;display:block;margin:0 auto;border-radius:6px"/>
       <button onclick="removeKIImage()" title="Bild entfernen" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center">✕</button>
@@ -935,6 +936,110 @@ function loadGeminiKey(){
 }
 
 // Bild auswählen → komprimiert als base64 speichern, Vorschau anzeigen
+/* ════════ KI: Spracheingabe (Web Speech API) ════════ */
+let _kiRec=null;        // SpeechRecognition Instanz
+let _kiRecActive=false;
+let _kiRecBaseText=''; // Text, der vor Start der aktuellen Aufnahme schon im Feld war
+
+function toggleKISpeech(){
+  // Browser-Support prüfen
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    toast('Spracheingabe wird von diesem Browser nicht unterstützt',true);
+    return;
+  }
+  if(_kiRecActive){stopKISpeech();return;}
+  startKISpeech(SR);
+}
+
+function startKISpeech(SR){
+  try{
+    _kiRec=new SR();
+    _kiRec.lang='de-DE';
+    _kiRec.continuous=true;       // Aufnahme läuft, bis manuell gestoppt
+    _kiRec.interimResults=true;   // Live-Transkript während des Sprechens
+    _kiRec.maxAlternatives=1;
+    const ta=document.getElementById('kiInput');
+    _kiRecBaseText=ta.value;
+    // Sicherstellen, dass ein Leerzeichen zwischen alt und neu steht
+    if(_kiRecBaseText && !_kiRecBaseText.endsWith(' ')&&!_kiRecBaseText.endsWith('\n')) _kiRecBaseText+=' ';
+
+    _kiRec.onresult=(ev)=>{
+      let finalT='',interimT='';
+      for(let i=ev.resultIndex;i<ev.results.length;i++){
+        const r=ev.results[i];
+        if(r.isFinal) finalT+=r[0].transcript;
+        else interimT+=r[0].transcript;
+      }
+      // Basis-Text aktualisieren um finale Teile
+      if(finalT){
+        _kiRecBaseText += finalT + ' ';
+      }
+      ta.value=_kiRecBaseText+interimT;
+    };
+    _kiRec.onerror=(ev)=>{
+      console.warn('Speech error:',ev.error);
+      const status=document.getElementById('kiSpeechStatus');
+      if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){
+        toast('Mikrofon-Zugriff verweigert',true);
+      }else if(ev.error==='no-speech'){
+        if(status) status.textContent='Nichts erkannt — sprich näher am Mikro';
+      }else if(ev.error!=='aborted'){
+        toast('Spracheingabe-Fehler: '+ev.error,true);
+      }
+    };
+    _kiRec.onend=()=>{
+      // Aufnahme zu Ende (manuell gestoppt oder Browser-Timeout)
+      _kiRecActive=false;
+      updateKIMicUI(false);
+    };
+    _kiRec.start();
+    _kiRecActive=true;
+    updateKIMicUI(true);
+  }catch(e){
+    console.error(e);
+    toast('Spracheingabe konnte nicht gestartet werden',true);
+    _kiRecActive=false;
+    updateKIMicUI(false);
+  }
+}
+
+function stopKISpeech(){
+  if(_kiRec){
+    try{_kiRec.stop();}catch(e){}
+  }
+  _kiRecActive=false;
+  updateKIMicUI(false);
+}
+
+function updateKIMicUI(active){
+  const btn=document.getElementById('kiMicBtn');
+  const ic=document.getElementById('kiMicIcon');
+  const lbl=document.getElementById('kiMicLabel');
+  const status=document.getElementById('kiSpeechStatus');
+  if(!btn)return;
+  if(active){
+    btn.style.background='rgba(232,90,90,.18)';
+    btn.style.borderColor='rgba(232,90,90,.5)';
+    btn.style.color='var(--dan)';
+    if(ic)ic.textContent='⏹';
+    if(lbl)lbl.textContent='Stopp';
+    if(status){status.style.display='block';status.textContent='🔴 Aufnahme läuft … sprich los, dann „Stopp" für Korrektur';status.style.color='var(--dan)';}
+  }else{
+    btn.style.background='';
+    btn.style.borderColor='';
+    btn.style.color='';
+    if(ic)ic.textContent='🎤';
+    if(lbl)lbl.textContent='Sprache';
+    if(status){
+      status.style.color='var(--mut)';
+      // Status nach kurzer Zeit ausblenden
+      setTimeout(()=>{if(!_kiRecActive)status.style.display='none';},2500);
+      if(status.textContent.startsWith('🔴'))status.textContent='✓ Aufnahme beendet — Text prüfen, dann „🔮 Berechnen"';
+    }
+  }
+}
+
 async function handleKIImage(event){
   const file=event.target.files?.[0];
   if(!file) return;
@@ -988,6 +1093,7 @@ function compressImageToBase64(file,maxSize,quality){
 }
 
 async function askGemini(){
+  if(_kiRecActive)stopKISpeech(); // Falls Spracheingabe noch läuft, vor dem Senden stoppen
   const desc=document.getElementById('kiInput').value.trim();
   if(!desc && !_kiImage){toast('Bitte Mahlzeit eingeben oder Foto hochladen',true);return;}
   const apiKey=localStorage.getItem('vf2_geminiKey');
@@ -1118,6 +1224,8 @@ function swTab(m){
   const tabIds={manual:'tabM',barcode:'tabB',fav:'tabD',ki:'tabK'};
   const panelIds={manual:'panelManual',barcode:'panelBarcode',fav:'panelFav',ki:'panelKI'};
   const wasActive=document.getElementById(tabIds[m]).classList.contains('on');
+  // Falls laufende Spracheingabe und wir verlassen den KI-Tab → stoppen
+  if(_kiRecActive && m!=='ki') stopKISpeech();
   // Alle Tabs/Panels zurücksetzen
   Object.values(tabIds).forEach(id=>document.getElementById(id).classList.remove('on'));
   Object.values(panelIds).forEach(id=>document.getElementById(id).style.display='none');
