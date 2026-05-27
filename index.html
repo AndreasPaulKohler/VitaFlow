@@ -965,17 +965,24 @@ function startKISpeech(SR){
     if(_kiRecBaseText && !_kiRecBaseText.endsWith(' ')&&!_kiRecBaseText.endsWith('\n')) _kiRecBaseText+=' ';
 
     _kiRec.onresult=(ev)=>{
-      // WICHTIG: ev.results enthält bei continuous=true ALLE bisherigen Ergebnisse.
-      // Wir bauen den gesprochenen Text bei jedem Event komplett neu auf,
-      // statt zu akkumulieren – sonst entstehen Duplikate.
-      let spokenFinal='', spokenInterim='';
+      // Chrome Mobile-Eigenheit: bei continuous=true + interimResults=true können MEHRERE
+      // interim-Slots gleichzeitig existieren, wobei jeder den gesamten Text bis dahin enthält.
+      // → Finale Slots konkatenieren, aber bei interim NUR den letzten verwenden.
+      let spokenFinal='', lastInterim='';
       for(let i=0;i<ev.results.length;i++){
         const r=ev.results[i];
         const t=r[0].transcript;
         if(r.isFinal) spokenFinal += t + ' ';
-        else          spokenInterim += t;
+        else          lastInterim = t; // überschreiben, nicht aufsummieren
       }
-      ta.value = _kiRecBaseText + spokenFinal + spokenInterim;
+      // DEBUG: kurz im Status anzeigen, wie viele Slots aktiv sind (hilft bei Diagnose)
+      const dbg=document.getElementById('kiSpeechStatus');
+      if(dbg && _kiRecActive){
+        let nF=0,nI=0;
+        for(let i=0;i<ev.results.length;i++){ev.results[i].isFinal?nF++:nI++;}
+        dbg.textContent='🔴 Aufnahme … '+nF+' final / '+nI+' interim';
+      }
+      ta.value = _kiRecBaseText + spokenFinal + lastInterim;
     };
     _kiRec.onerror=(ev)=>{
       console.warn('Speech error:',ev.error);
